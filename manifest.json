@@ -1,6 +1,6 @@
 {
-  "name": "Toggle",
-  "short_name": "Toggle",
+  "name": "Yak & Beauty Tasks",
+  "short_name": "Tasks",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#111111",
