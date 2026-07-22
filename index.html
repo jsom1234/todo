@@ -19,17 +19,18 @@
       gap: 12px; padding: 12px 14px; margin-bottom: 10px;
       border-radius: 12px; color: #1a1a1a; font-size: 1rem;
     }
-    .task.todo { background: #f6d743; }   /* yellow */
-    .task.done { background: #22c55e; }   /* bright green */
+    .task.todo { background: #e8e8e8; }            /* light grey */
+    .task.done { background: #c9f0d4; }            /* light green */
     .task .label { flex: 1; }
     .task .order { opacity: 0.65; font-variant-numeric: tabular-nums; }
     .task button {
       border: none; border-radius: 8px;
       padding: 8px 14px; font-size: 0.9rem; font-weight: 600;
-      cursor: pointer; min-width: 76px;
-      background: rgba(0,0,0,0.15); color: #1a1a1a;
+      cursor: pointer; min-width: 76px; color: #1a1a1a;
     }
-    .task button:disabled { opacity: 0.6; }
+    .task.todo button { background: #f6d743; }     /* yellow */
+    .task.done button { background: #5cc47a; }     /* darker green */
+    .task button:disabled { cursor: default; }
     #status { text-align: center; opacity: 0.6; padding: 20px; }
   </style>
 </head>
@@ -44,8 +45,15 @@
     const status = document.getElementById('status');
 
     function fmtOrder(o) {
-      // show 7.00 as 7:00 style if you like; keeping as-is for simplicity
-      return o;
+      const n = Number(o);
+      if (isNaN(n)) return o;
+      if (n >= 24) return String(o);   // weekly-block rows etc. show raw
+      const hours = Math.floor(n);
+      // decimal fraction of an hour-label -> minutes (.1=10, .45=45, .05=5)
+      const frac = n - hours;
+      const mins = Math.round(frac * 100);
+      const pad = x => String(x).padStart(2, '0');
+      return pad(hours) + ':' + pad(mins);
     }
 
     function render(tasks) {
@@ -73,18 +81,22 @@
       }
     }
 
-    async function markDone(t, row, btn) {
+    function markDone(t, row, btn) {
+      // update UI immediately
+      t.done = true;
+      row.className = 'task done';
+      btn.textContent = 'Done';
       btn.disabled = true;
-      btn.textContent = '…';
-      try {
-        await fetch(URL + '?action=done&row=' + t.row);
-        row.className = 'task done';
-        btn.textContent = 'Done';
-      } catch (e) {
-        btn.disabled = false;
+
+      // fire the sheet update in the background
+      fetch(URL + '?action=done&row=' + t.row).catch(() => {
+        // revert on failure
+        t.done = false;
+        row.className = 'task todo';
         btn.textContent = 'TODO';
-        alert('Failed — try again');
-      }
+        btn.disabled = false;
+        alert('Failed to save — try again');
+      });
     }
 
     async function load() {
