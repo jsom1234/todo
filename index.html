@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Toggle</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+</head>
+<body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#111;font-family:sans-serif;">
+  <button id="btn" style="width:200px;height:200px;border-radius:20px;font-size:2rem;border:none;color:white;background:#666;">
+    ?
+  </button>
+
+  <script>
+    const URL = 'YOUR_WEB_APP_URL';  // ends in /exec
+    const btn = document.getElementById('btn');
+
+    function render(v) {
+      btn.textContent = v;
+      btn.style.background = v == 1 ? '#22c55e' : '#ef4444';
+    }
+
+    async function load() {
+      try {
+        const r = await fetch(URL);
+        render((await r.text()).trim());
+      } catch (e) {
+        btn.textContent = 'err';
+      }
+    }
+
+    btn.onclick = async () => {
+      btn.disabled = true;
+      try {
+        const r = await fetch(URL + '?action=toggle');
+        render((await r.text()).trim());
+      } catch (e) {
+        btn.textContent = 'err';
+      }
+      btn.disabled = false;
+    };
+
+    load();
+  </script>
+</body>
+</html>
