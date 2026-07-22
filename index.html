@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tasks</title>
+  <title>Yak & Beauty Tasks</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
   <style>
@@ -20,7 +20,8 @@
       border-radius: 12px; color: #1a1a1a; font-size: 1rem;
     }
     .task.todo { background: #e8e8e8; }            /* light grey */
-    .task.done { background: #c9f0d4; }            /* light green */
+    .task.done { background: #a3e0b6; }            /* darker light green */
+    .task.overdue .label { color: #a11; }          /* dark red text */
     .task .label { flex: 1; }
     .task .order { opacity: 0.65; font-variant-numeric: tabular-nums; }
     .task button {
@@ -31,11 +32,19 @@
     .task.todo button { background: #f6d743; }     /* yellow */
     .task.done button { background: #5cc47a; }     /* darker green */
     .task button:disabled { cursor: default; }
+    .now-line {
+      display: flex; align-items: center; gap: 10px;
+      margin: 6px 2px 16px; color: #f6d743; font-size: 0.8rem;
+    }
+    .now-line::before, .now-line::after {
+      content: ''; flex: 1; height: 0;
+      border-top: 2px dotted rgba(246,215,67,0.6);
+    }
     #status { text-align: center; opacity: 0.6; padding: 20px; }
   </style>
 </head>
 <body>
-  <h1>Today's Tasks</h1>
+  <h1>Yak & Beauty Tasks</h1>
   <div id="list"></div>
   <div id="status">Loading…</div>
 
@@ -44,24 +53,48 @@
     const list = document.getElementById('list');
     const status = document.getElementById('status');
 
-    function fmtOrder(o) {
+    // convert an Order value to minutes-since-midnight (or null if not a time)
+    function orderToMinutes(o) {
       const n = Number(o);
-      if (isNaN(n)) return o;
-      if (n >= 24) return String(o);   // weekly-block rows etc. show raw
+      if (isNaN(n) || n >= 24) return null;
       const hours = Math.floor(n);
-      // decimal fraction of an hour-label -> minutes (.1=10, .45=45, .05=5)
-      const frac = n - hours;
-      const mins = Math.round(frac * 100);
+      const mins = Math.round((n - hours) * 100);
+      return hours * 60 + mins;
+    }
+
+    function fmtOrder(o) {
+      const mins = orderToMinutes(o);
+      if (mins === null) return String(o);
       const pad = x => String(x).padStart(2, '0');
-      return pad(hours) + ':' + pad(mins);
+      return pad(Math.floor(mins / 60)) + ':' + pad(mins % 60);
+    }
+
+    function nowMinutes() {
+      const d = new Date();
+      return d.getHours() * 60 + d.getMinutes();
     }
 
     function render(tasks) {
       list.innerHTML = '';
       tasks.sort((a, b) => Number(a.order) - Number(b.order));
+
+      const now = nowMinutes();
+      let linePlaced = false;
+
       for (const t of tasks) {
+        const mins = orderToMinutes(t.order);
+        const isTimed = mins !== null;
+
+        // place the current-time line before the first task at/after now
+        if (isTimed && !linePlaced && mins >= now) {
+          list.appendChild(makeNowLine());
+          linePlaced = true;
+        }
+
+        const overdue = isTimed && !t.done && mins < now;
+
         const row = document.createElement('div');
-        row.className = 'task ' + (t.done ? 'done' : 'todo');
+        row.className = 'task ' + (t.done ? 'done' : 'todo') + (overdue ? ' overdue' : '');
 
         const order = document.createElement('span');
         order.className = 'order';
@@ -79,6 +112,18 @@
         row.append(order, label, btn);
         list.appendChild(row);
       }
+
+      // if now is after every timed task, put the line at the end
+      if (!linePlaced) list.appendChild(makeNowLine());
+    }
+
+    function makeNowLine() {
+      const d = new Date();
+      const pad = x => String(x).padStart(2, '0');
+      const el = document.createElement('div');
+      el.className = 'now-line';
+      el.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+      return el;
     }
 
     function markDone(t, row, btn) {
