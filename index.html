@@ -3,43 +3,100 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Toggle</title>
+  <title>Tasks</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 12px;
+      background: #111; color: #eee;
+      font-family: sans-serif;
+    }
+    h1 { font-size: 1.2rem; text-align: center; margin: 8px 0 16px; }
+    .task {
+      display: flex; align-items: center;
+      gap: 12px; padding: 12px 14px; margin-bottom: 10px;
+      border-radius: 12px; color: #1a1a1a; font-size: 1rem;
+    }
+    .task.todo { background: #f6d743; }   /* yellow */
+    .task.done { background: #22c55e; }   /* bright green */
+    .task .label { flex: 1; }
+    .task .order { opacity: 0.65; font-variant-numeric: tabular-nums; }
+    .task button {
+      border: none; border-radius: 8px;
+      padding: 8px 14px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; min-width: 76px;
+      background: rgba(0,0,0,0.15); color: #1a1a1a;
+    }
+    .task button:disabled { opacity: 0.6; }
+    #status { text-align: center; opacity: 0.6; padding: 20px; }
+  </style>
 </head>
-<body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#111;font-family:sans-serif;">
-  <button id="btn" style="width:200px;height:200px;border-radius:20px;font-size:2rem;border:none;color:white;background:#666;">
-    ?
-  </button>
+<body>
+  <h1>Today's Tasks</h1>
+  <div id="list"></div>
+  <div id="status">Loading…</div>
 
   <script>
-    const URL = 'https://script.google.com/macros/s/AKfycbz9Q7WVENXspCNcLYYvPy15UmhHT3q27bFEGJWXjLonpgbZsst9Ti055Q0pG8fbCq0/exec';  // ends in /exec
-    const btn = document.getElementById('btn');
+    const URL = 'https://script.google.com/macros/s/AKfycbzWe3kmPoaSP9JiU_QpGjTikD3EwLi-69a3MS5Go8DIV5sGjydHr9bmtYI7hXNsp9tn/exec';  // ends in /exec
+    const list = document.getElementById('list');
+    const status = document.getElementById('status');
 
-    function render(v) {
-      btn.textContent = v;
-      btn.style.background = v == 1 ? '#22c55e' : '#ef4444';
+    function fmtOrder(o) {
+      // show 7.00 as 7:00 style if you like; keeping as-is for simplicity
+      return o;
+    }
+
+    function render(tasks) {
+      list.innerHTML = '';
+      tasks.sort((a, b) => Number(a.order) - Number(b.order));
+      for (const t of tasks) {
+        const row = document.createElement('div');
+        row.className = 'task ' + (t.done ? 'done' : 'todo');
+
+        const order = document.createElement('span');
+        order.className = 'order';
+        order.textContent = fmtOrder(t.order);
+
+        const label = document.createElement('span');
+        label.className = 'label';
+        label.textContent = t.task;
+
+        const btn = document.createElement('button');
+        btn.textContent = t.done ? 'Done' : 'TODO';
+        btn.disabled = t.done;
+        btn.onclick = () => markDone(t, row, btn);
+
+        row.append(order, label, btn);
+        list.appendChild(row);
+      }
+    }
+
+    async function markDone(t, row, btn) {
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        await fetch(URL + '?action=done&row=' + t.row);
+        row.className = 'task done';
+        btn.textContent = 'Done';
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'TODO';
+        alert('Failed — try again');
+      }
     }
 
     async function load() {
       try {
         const r = await fetch(URL);
-        render((await r.text()).trim());
+        const data = await r.json();
+        render(data.tasks);
+        status.textContent = data.tasks.length ? '' : 'No tasks for today';
       } catch (e) {
-        btn.textContent = 'err';
+        status.textContent = 'Error loading tasks';
       }
     }
-
-    btn.onclick = async () => {
-      btn.disabled = true;
-      try {
-        const r = await fetch(URL + '?action=toggle');
-        render((await r.text()).trim());
-      } catch (e) {
-        btn.textContent = 'err';
-      }
-      btn.disabled = false;
-    };
 
     load();
   </script>
