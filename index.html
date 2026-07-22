@@ -14,14 +14,16 @@
       font-family: sans-serif;
     }
     h1 { font-size: 1.2rem; text-align: center; margin: 8px 0 16px; }
+    h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;
+         opacity: 0.55; margin: 18px 2px 8px; }
     .task {
       display: flex; align-items: center;
       gap: 12px; padding: 12px 14px; margin-bottom: 10px;
       border-radius: 12px; color: #1a1a1a; font-size: 1rem;
     }
-    .task.todo { background: #e8e8e8; }            /* light grey */
-    .task.done { background: #a3e0b6; }            /* darker light green */
-    .task.overdue .label { color: #a11; }          /* dark red text */
+    .task.todo { background: #e8e8e8; }
+    .task.done { background: #a3e0b6; }
+    .task.overdue .label { color: #a11; }
     .task .label { flex: 1; }
     .task .order { opacity: 0.65; font-variant-numeric: tabular-nums; }
     .task button {
@@ -29,9 +31,14 @@
       padding: 8px 14px; font-size: 0.9rem; font-weight: 600;
       cursor: pointer; min-width: 76px; color: #1a1a1a;
     }
-    .task.todo button { background: #f6d743; }     /* yellow */
-    .task.done button { background: #5cc47a; }     /* darker green */
+    .task.todo button { background: #f6d743; }
+    .task.done button { background: #5cc47a; }
     .task button:disabled { cursor: default; }
+
+    /* one-off cards: subtle distinct tint */
+    .task.oneoff.todo { background: #dfe6f0; }
+    .task.oneoff .due { font-size: 0.75rem; opacity: 0.6; }
+
     .now-line {
       display: flex; align-items: center; gap: 10px;
       margin: 6px 2px 16px; color: #f6d743; font-size: 0.8rem;
@@ -41,19 +48,99 @@
       border-top: 2px dotted rgba(246,215,67,0.6);
     }
     #status { text-align: center; opacity: 0.6; padding: 20px; }
+
+    #addBtn {
+      display: block; width: 100%; margin: 20px 0 40px;
+      padding: 14px; border: none; border-radius: 12px;
+      background: #2b2b2b; color: #eee; font-size: 1rem; font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* modal */
+    #overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center; justify-content: center; padding: 16px; z-index: 10;
+    }
+    #overlay.open { display: flex; }
+    .modal {
+      background: #1e1e1e; border-radius: 16px; width: 100%; max-width: 420px;
+      padding: 18px; position: relative;
+    }
+    .modal h3 { margin: 0 0 16px; font-size: 1.1rem; }
+    .modal .close {
+      position: absolute; top: 12px; right: 14px;
+      background: none; border: none; color: #aaa; font-size: 1.4rem;
+      cursor: pointer; line-height: 1;
+    }
+    .modal label { display: block; font-size: 0.8rem; opacity: 0.6; margin: 12px 0 6px; }
+    .modal input[type=text], .modal input[type=number] {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid #444; background: #2a2a2a; color: #eee; font-size: 1rem;
+    }
+    .due-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+    .due-opt {
+      padding: 9px 12px; border-radius: 8px; cursor: pointer;
+      border: 2px solid #444; background: #2a2a2a; color: #ccc;
+      font-size: 0.9rem;
+    }
+    .due-opt.sel {
+      border-color: #f6d743; color: #fff; font-weight: 700;
+      background: #3a3626;
+    }
+    .custom-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .custom-row input { width: 70px; }
+    .custom-row span { font-size: 0.9rem; opacity: 0.7; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+    .modal-actions button {
+      flex: 1; padding: 12px; border: none; border-radius: 10px;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+    }
+    #cancelBtn { background: #333; color: #ccc; }
+    #saveBtn { background: #5cc47a; color: #10240f; }
+    #saveBtn:disabled { opacity: 0.5; cursor: default; }
   </style>
 </head>
 <body>
   <h1>Yak & Beauty Tasks</h1>
   <div id="list"></div>
+  <button id="addBtn">Add Task</button>
   <div id="status">Loading…</div>
 
+  <!-- Add Task modal -->
+  <div id="overlay">
+    <div class="modal">
+      <button class="close" id="closeBtn">&times;</button>
+      <h3>Add One-off Task</h3>
+
+      <label>Task name</label>
+      <input type="text" id="taskName" placeholder="e.g. Book dentist">
+
+      <label>Due by</label>
+      <div class="due-opts" id="dueOpts">
+        <div class="due-opt" data-due="today">Today</div>
+        <div class="due-opt" data-due="tomorrow">Tomorrow</div>
+        <div class="due-opt" data-due="weekend">End of weekend</div>
+        <div class="due-opt" data-due="custom">Custom</div>
+      </div>
+      <div class="custom-row" id="customRow" style="display:none;">
+        <input type="number" id="customDays" min="0" value="3">
+        <span>days from today</span>
+      </div>
+
+      <div class="modal-actions">
+        <button id="cancelBtn">Cancel</button>
+        <button id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    const URL = 'https://script.google.com/macros/s/AKfycby9kTCFfLEoRlChSB4eMmWYH16uuf9Qu46rQqN_np0p6TAJWj3F7A1bshYzYVuzxTz5/exec';  // ends in /exec
+    const URL = 'https://script.google.com/macros/s/AKfycbzWe3kmPoaSP9JiU_QpGjTikD3EwLi-69a3MS5Go8DIV5sGjydHr9bmtYI7hXNsp9tn/exec';  // ends in /exec
     const list = document.getElementById('list');
     const status = document.getElementById('status');
 
-    // convert an Order value to minutes-since-midnight (or null if not a time)
+    // ---------- time / order helpers ----------
     function orderToMinutes(o) {
       const n = Number(o);
       if (isNaN(n) || n >= 24) return null;
@@ -61,60 +148,90 @@
       const mins = Math.round((n - hours) * 100);
       return hours * 60 + mins;
     }
-
     function fmtOrder(o) {
       const mins = orderToMinutes(o);
       if (mins === null) return String(o);
       const pad = x => String(x).padStart(2, '0');
       return pad(Math.floor(mins / 60)) + ':' + pad(mins % 60);
     }
-
     function nowMinutes() {
       const d = new Date();
       return d.getHours() * 60 + d.getMinutes();
     }
+    function fmtDate(ms) {
+      const d = new Date(ms);
+      return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    }
 
-    function render(tasks) {
+    // ---------- render ----------
+    function render(data) {
       list.innerHTML = '';
-      tasks.sort((a, b) => Number(a.order) - Number(b.order));
+      const oneoffs = data.oneoffs || [];
+      const tasks = data.tasks || [];
 
+      // one-off eligible tasks at the very top
+      if (oneoffs.length) {
+        const h = document.createElement('h2');
+        h.textContent = 'One-off';
+        list.appendChild(h);
+        oneoffs.sort((a, b) => a.dueMs - b.dueMs);
+        for (const t of oneoffs) list.appendChild(makeOneoffRow(t));
+      }
+
+      // recurring daily section
+      if (tasks.length) {
+        const h = document.createElement('h2');
+        h.textContent = 'Today';
+        list.appendChild(h);
+      }
+      tasks.sort((a, b) => Number(a.order) - Number(b.order));
       const now = nowMinutes();
       let linePlaced = false;
-
       for (const t of tasks) {
         const mins = orderToMinutes(t.order);
         const isTimed = mins !== null;
-
-        // place the current-time line before the first task at/after now
         if (isTimed && !linePlaced && mins >= now) {
           list.appendChild(makeNowLine());
           linePlaced = true;
         }
-
         const overdue = isTimed && !t.done && mins < now;
-
-        const row = document.createElement('div');
-        row.className = 'task ' + (t.done ? 'done' : 'todo') + (overdue ? ' overdue' : '');
-
-        const order = document.createElement('span');
-        order.className = 'order';
-        order.textContent = fmtOrder(t.order);
-
-        const label = document.createElement('span');
-        label.className = 'label';
-        label.textContent = t.task;
-
-        const btn = document.createElement('button');
-        btn.textContent = t.done ? 'Done' : 'TODO';
-        btn.disabled = t.done;
-        btn.onclick = () => markDone(t, row, btn);
-
-        row.append(order, label, btn);
-        list.appendChild(row);
+        list.appendChild(makeTaskRow(t, overdue));
       }
+      if (tasks.length && !linePlaced) list.appendChild(makeNowLine());
+    }
 
-      // if now is after every timed task, put the line at the end
-      if (!linePlaced) list.appendChild(makeNowLine());
+    function makeTaskRow(t, overdue) {
+      const row = document.createElement('div');
+      row.className = 'task ' + (t.done ? 'done' : 'todo') + (overdue ? ' overdue' : '');
+      const order = document.createElement('span');
+      order.className = 'order'; order.textContent = fmtOrder(t.order);
+      const label = document.createElement('span');
+      label.className = 'label'; label.textContent = t.task;
+      const btn = document.createElement('button');
+      btn.textContent = t.done ? 'Done' : 'TODO';
+      btn.disabled = t.done;
+      btn.onclick = () => markDone(t, row, btn, 'done');
+      row.append(order, label, btn);
+      return row;
+    }
+
+    function makeOneoffRow(t) {
+      const row = document.createElement('div');
+      row.className = 'task oneoff todo';
+      const label = document.createElement('span');
+      label.className = 'label';
+      label.textContent = t.task;
+      const due = document.createElement('span');
+      due.className = 'due';
+      due.textContent = 'due ' + fmtDate(t.dueMs);
+      const wrap = document.createElement('span');
+      wrap.className = 'label';
+      wrap.append(label, document.createElement('br'), due);
+      const btn = document.createElement('button');
+      btn.textContent = 'TODO';
+      btn.onclick = () => markDone(t, row, btn, 'oneoffdone');
+      row.append(wrap, btn);
+      return row;
     }
 
     function makeNowLine() {
@@ -126,18 +243,14 @@
       return el;
     }
 
-    function markDone(t, row, btn) {
-      // update UI immediately
+    function markDone(t, row, btn, action) {
       t.done = true;
-      row.className = 'task done';
+      row.className = row.className.replace('todo', 'done');
       btn.textContent = 'Done';
       btn.disabled = true;
-
-      // fire the sheet update in the background
-      fetch(URL + '?action=done&row=' + t.row).catch(() => {
-        // revert on failure
+      fetch(URL + '?action=' + action + '&row=' + t.row).catch(() => {
         t.done = false;
-        row.className = 'task todo';
+        row.className = row.className.replace('done', 'todo');
         btn.textContent = 'TODO';
         btn.disabled = false;
         alert('Failed to save — try again');
@@ -148,12 +261,83 @@
       try {
         const r = await fetch(URL);
         const data = await r.json();
-        render(data.tasks);
-        status.textContent = data.tasks.length ? '' : 'No tasks for today';
+        render(data);
+        const total = (data.tasks || []).length + (data.oneoffs || []).length;
+        status.textContent = total ? '' : 'No tasks';
       } catch (e) {
         status.textContent = 'Error loading tasks';
       }
     }
+
+    // ---------- modal logic ----------
+    const overlay = document.getElementById('overlay');
+    const dueOpts = document.getElementById('dueOpts');
+    const customRow = document.getElementById('customRow');
+    const customDays = document.getElementById('customDays');
+    const taskName = document.getElementById('taskName');
+    const saveBtn = document.getElementById('saveBtn');
+    let selectedDue = 'today';
+
+    function openModal() {
+      taskName.value = '';
+      selectedDue = 'today';
+      customRow.style.display = 'none';
+      [...dueOpts.children].forEach(el =>
+        el.classList.toggle('sel', el.dataset.due === 'today'));
+      overlay.classList.add('open');
+      taskName.focus();
+    }
+    function closeModal() { overlay.classList.remove('open'); }
+
+    document.getElementById('addBtn').onclick = openModal;
+    document.getElementById('cancelBtn').onclick = closeModal;
+    document.getElementById('closeBtn').onclick = closeModal;
+    overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+
+    dueOpts.onclick = (e) => {
+      const opt = e.target.closest('.due-opt');
+      if (!opt) return;
+      selectedDue = opt.dataset.due;
+      [...dueOpts.children].forEach(el => el.classList.toggle('sel', el === opt));
+      customRow.style.display = (selectedDue === 'custom') ? 'flex' : 'none';
+    };
+
+    // compute the due date as a ms timestamp (at midnight local)
+    function computeDueMs() {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      if (selectedDue === 'today') {
+        // no change
+      } else if (selectedDue === 'tomorrow') {
+        d.setDate(d.getDate() + 1);
+      } else if (selectedDue === 'weekend') {
+        // next Sunday in future; today if today is Sunday (getDay 0 = Sunday)
+        const day = d.getDay();
+        const add = (7 - day) % 7; // Sunday -> 0, Mon -> 6, ... Sat -> 1
+        d.setDate(d.getDate() + add);
+      } else if (selectedDue === 'custom') {
+        const x = parseInt(customDays.value, 10);
+        d.setDate(d.getDate() + (isNaN(x) ? 0 : x));
+      }
+      return d.getTime();
+    }
+
+    saveBtn.onclick = async () => {
+      const name = taskName.value.trim();
+      if (!name) { taskName.focus(); return; }
+      saveBtn.disabled = true;
+      const dueMs = computeDueMs();
+      try {
+        await fetch(URL + '?action=addtask&name=' +
+          encodeURIComponent(name) + '&due=' + dueMs);
+        closeModal();
+        load(); // refresh so the new task appears if eligible
+      } catch (e) {
+        alert('Failed to add — try again');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    };
 
     load();
   </script>
