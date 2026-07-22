@@ -259,7 +259,7 @@
 
     async function load() {
       try {
-        const r = await fetch(URL);
+        const r = await fetch(URL + '?_=' + Date.now());
         const data = await r.json();
         render(data);
         const total = (data.tasks || []).length + (data.oneoffs || []).length;
