@@ -215,9 +215,9 @@
       return row;
     }
 
-    function makeOneoffRow(t) {
+     function makeOneoffRow(t) {
       const row = document.createElement('div');
-      row.className = 'task oneoff todo';
+      row.className = 'task oneoff ' + (t.done ? 'done' : 'todo');
       const label = document.createElement('span');
       label.className = 'label';
       label.textContent = t.task;
@@ -228,7 +228,8 @@
       wrap.className = 'label';
       wrap.append(label, document.createElement('br'), due);
       const btn = document.createElement('button');
-      btn.textContent = 'TODO';
+      btn.textContent = t.done ? 'Done' : 'TODO';
+      btn.disabled = t.done;
       btn.onclick = () => markDone(t, row, btn, 'oneoffdone');
       row.append(wrap, btn);
       return row;
